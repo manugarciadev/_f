@@ -47,6 +47,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AddIcon from "@mui/icons-material/Add";
 import Typography from '@mui/material/Typography';
 import Header from "../../components/Header";
+import CircularProgress from '@mui/material/CircularProgress';
 
 
 Font.register({
@@ -907,6 +908,7 @@ const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState('tab1'); 
   // Extracting all the "cards" from the "opZones" array
   const [allCards, setAllCards] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState('');
 
   const travelData = {
@@ -1048,8 +1050,11 @@ const handleImprimirPDFIndividual = async (tipe, code) => {
   };
 
   const handleImprimirPDFPrincipal = async () => {
+
+  
     try {
-    
+      setLoading(true); // Inicia o loading
+      setMensagem(''); // Limpa a mensagem anterior
       console.log(form);
       const response = await axios.post(`/api/pdf`,form,{ responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -1061,6 +1066,9 @@ const handleImprimirPDFIndividual = async (tipe, code) => {
       setMensagem(`PDF da atividade Pacote baixado com sucesso.`);
     } catch (error) {
       console.error(`Erro ao imprimir PDF do pacote:`, error);
+    }
+      finally {
+      setLoading(false); // Termina o loading
     }
   };
 
@@ -1290,9 +1298,21 @@ const handleImprimirPDFIndividual = async (tipe, code) => {
       </Fab>
       
     </Box>
-      <Fab onClick={handleImprimirPDFPrincipal} color="info" aria-label="add" style={{position:"fixed", bottom:"50px", right:"50px"}} size="large">
+    <div>
+      {loading && (
+        <div style={{ position: 'fixed', bottom: '50px', right: '50px' }}>
+          <CircularProgress color="info" />
+        </div>
+      )}
+      {mensagem && !loading && (
+        <div style={{ position: 'fixed', bottom: '100px', right: '50px', backgroundColor: 'white', padding: '10px', borderRadius: '5px', boxShadow: '0px 0px 10px rgba(0,0,0,0.1)' }}>
+          {mensagem}
+        </div>
+      )}
+      <Fab onClick={handleImprimirPDFPrincipal} color="info" aria-label="add" style={{ position: "fixed", bottom: "50px", right: "50px" }} size="large">
         <DownloadIcon />
       </Fab>
+    </div>
     
             
         </div>

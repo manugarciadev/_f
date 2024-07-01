@@ -147,7 +147,7 @@ function SeasonPriceEditor({ seasons, onSeasonPriceChange }) {
     <div>
       <Button
         variant="contained"
-        onClick={(event) => handleClick(event, 0)} // Use o índice 0 para abrir todas as estações
+        onClick={(event) => handleClick(event, 0)} // Cropper Use o índice 0 para abrir todas as estações
       >
         Seasons
       </Button>
@@ -281,6 +281,7 @@ function TabPanel(props) {
   );
 }
 
+// ContentCutIcon
 
 
 const ModalContent = ({ categories, themes }) => {
@@ -695,7 +696,7 @@ const handleFiles = (files) => {
   const validFiles = Array.from(files).filter((file) => {
     const isValidType = file.type.match('image.*');
     if (!isValidType) {
-      setError('Unsupported file type. Supported file types are: .jpeg, .jpg, .png');
+      setError('Unsupported file type. Supported file types are: .jpeg, .jpg, .png__');
     }
     return isValidType;
   });
@@ -704,9 +705,27 @@ const handleFiles = (files) => {
     setError(null); // Limpa as mensagens de erro anteriores
   }
 
-  const newImages = validFiles.map((file) => URL.createObjectURL(file));
-  setDraggedImages((prevImages) => [...prevImages, ...newImages]);
+  validFiles.forEach((file) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Converte para base64
+      const base64String = reader.result;
+      // Atualiza o estado com a nova imagem cropImage
+      setDraggedImages((prevImages) => [...prevImages, base64String]);
+    };
+    reader.readAsDataURL(file);
+  });
 };
+
+const convertToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 
 const handleImageChange = (event) => {
   const files = event.target.files;
@@ -731,9 +750,12 @@ const showCropper = (image, index) => {
 
 const cropImage = async () => {
   try {
-    const croppedImage = await getCroppedImg(currentImage, croppedAreaPixels);
+    const croppedImageBlob = await getCroppedImg(currentImage, croppedAreaPixels);
+    const croppedImageBase64 = await convertToBase64(croppedImageBlob);
+
     const newImages = [...draggedImages];
-    newImages[currentIndex] = croppedImage;
+    newImages[currentIndex] = croppedImageBase64;
+
     setDraggedImages(newImages);
     setOpenCropper(false);
     setCurrentImage(null);
@@ -743,6 +765,7 @@ const cropImage = async () => {
     setError('Failed to crop the image. Please try again.');
   }
 };
+
 
 const handleDragStart = (event, product) => {
   event.dataTransfer.setData('product', JSON.stringify(product));
@@ -1574,11 +1597,11 @@ const addToProductTask = () => {
       languages: languages,
       // Configurar campos com valores do primeiro objeto em languages, se existir
       ...(languages.length > 0 && {
-          title: languages[0].title,
-          shortDescription: languages[0].shortDescription,
-          longDescription: languages[0].longDescription,
-          // ... outros campos ...
-      }),
+        name: languages[0].title,
+        shortDescription: languages[0].shortDescription,
+        description: languages[0].longDescription,
+        // ... outros campos ...
+    }),
       // >>>
       knowBeforeYouGo: knowBeforeYouGo,
       //knowBeforeYouGoDescription,
@@ -3951,114 +3974,116 @@ const handleBack = () => {
             <h2 className="text-center">Want to add Photos to your expirience?</h2>
             <h4 className="text-center" style={{ color: 'gray' }}>Show travellers even more details about your expirience to give your travellers a better idea of what to expect.</h4>
             <br/>
-            <Container>
-      <Grid container spacing={2}>
-      <Grid item xs={12}>
+           <Container>
+  <Grid container spacing={2}>
+    <Grid item xs={12}>
       <div>
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
-      <Paper
-        sx={{
-          backgroundColor: 'white',
-          marginRight: '5px',
-          border: '3px dashed gray',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderRadius: '10px',
-          padding: '10px',
-          minHeight: '370px',
-          height: 'auto',
-          transition: 'height 0.3s ease',
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={handleDrop} // Liga o evento de arrastar e soltar ao handleDrop
-      >
-        {draggedImages.length === 0 ? (
-          <div className="empty-container-message">
-            <h3 className="text-center">Drag photos here.</h3>
-            <h5 className="text-center" style={{ color: 'gray' }}>
-              Supported file types are: .jpeg, .jpg, .png
-            </h5>
-            <input type="file" accept="image/*" onChange={handleImageChange} multiple /> {/* Liga o evento de mudança ao handleImageChange */}
-          </div>
-        ) : (
-          draggedImages.map((imageUrl, index) => (
-            <div
-              key={index}
-              className="square-image"
-              style={{
-                position: 'relative',
-                width: '100px',
-                height: '100px',
-                margin: '5px',
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+        <Grid container spacing={2}>
+          <Grid item xs={10}>
+            <Paper
+              sx={{
+                backgroundColor: 'white',
+                border: '3px dashed gray',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
                 borderRadius: '10px',
-                overflow: 'hidden',
+                padding: '10px',
+                minHeight: '370px',
+                height: 'auto',
+                transition: 'height 0.3s ease',
               }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDrop} // Liga o evento de arrastar e soltar ao handleDrop
             >
-              <img
-                src={imageUrl}
-                alt={`Dragged Image ${index}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onClick={() => showCropper(imageUrl, index)} // Passa o índice da imagem para a função showCropper
-              />
-              <Button
-              sx={{width: '5px'}}
-                className="remove-button"
-                variant="contained"
-                size="small"
-                style={{
-                  position: 'absolute',
-                  top: '5px',
-                  right: '5px',
-                  width: '3px',
-                  height: '20px',
-                  padding: '0',
-                  fontSize: '14px',
-                }}
-                onClick={() => handleRemoveImage(index)}
-              >
-                &times;
-              </Button>
-            </div>
-          ))
+              {draggedImages.length === 0 ? (
+                <div className="empty-container-message">
+                  <h3 className="text-center">Drag photos here.</h3>
+                  <h5 className="text-center" style={{ color: 'gray' }}>
+                    Supported file types are: .jpeg, .jpg, .png
+                  </h5>
+                  <input type="file" accept="image/*" onChange={handleImageChange} multiple /> {/* Liga o evento de mudança ao handleImageChange */}
+                </div>
+              ) : (
+                draggedImages.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="square-image"
+                    style={{
+                      position: 'relative',
+                      width: '100px',
+                      height: '100px',
+                      margin: '5px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Dragged Image ${index}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onClick={() => showCropper(imageUrl, index)} // Passa o índice da imagem para a função showCropper
+                    />
+                    <Button
+                      sx={{width: '5px'}}
+                      className="remove-button"
+                      variant="contained"
+                      size="small"
+                      style={{
+                        position: 'absolute',
+                        top: '5px',
+                        right: '5px',
+                        width: '3px',
+                        height: '20px',
+                        padding: '0',
+                        fontSize: '14px',
+                      }}
+                      onClick={() => handleRemoveImage(index)}
+                    >
+                      &times;
+                    </Button>
+                  </div>
+                ))
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {openCropper && (
+          <Dialog open={openCropper} onClose={() => setOpenCropper(false)} maxWidth="lg">
+            <DialogContent>
+              <div className="cropper-container" style={{ position: 'relative', width: '600px', height: '400px' }}>
+                <Cropper
+                  image={currentImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={4 / 3}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  minZoom={0.5}
+                  maxZoom={3}
+                  zoomSpeed={0.2}
+                  initialAspectRatio={4 / 3}
+                  style={{
+                    containerStyle: { height: '100%' },
+                  }}
+                />
+              </div>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="contained" onClick={cropImage}>Crop <ContentCutIcon/></Button>
+              <Button variant="contained" onClick={() => setOpenCropper(false)}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
         )}
-      </Paper>
+      </div>
+    </Grid>
+  </Grid>
+</Container>
 
-      {openCropper && (
-        <Dialog open={openCropper} onClose={() => setOpenCropper(false)} maxWidth="lg">
-          <DialogContent>
-            <div className="cropper-container" style={{ position: 'relative', width: '600px', height: '400px' }}>
-              <Cropper
-                image={currentImage}
-                crop={crop}
-                zoom={zoom}
-                aspect={4 / 3}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-                minZoom={0.5}
-                maxZoom={3}
-                zoomSpeed={0.2}
-                initialAspectRatio={4 / 3}
-                style={{
-                  containerStyle: { height: '100%' },
-                }}
-              />
-            </div>
-          </DialogContent>
-          <DialogActions>
-            <Button variant="contained" onClick={cropImage}>Crop <ContentCutIcon/></Button>
-            <Button variant="contained" onClick={() => setOpenCropper(false)}>Cancel</Button>
-          </DialogActions>
-        </Dialog>
-      )}
-    </div>
-
-      </Grid>
-
-      </Grid>
-    </Container>
     <br/>
             <h2 className="text-center">Want to add videos to your expirience?</h2>
             <h4 className="text-center" style={{ color: 'gray' }}>Show travellers even more details in videos about your expirience to give your travellers a better idea of what to expect.</h4>
@@ -5013,8 +5038,8 @@ sx={{
 <div>
               <Button variant="contained" sx={{marginRight:'4px'}} onClick={handleCloseLanguagesModal}>
                     cancel </Button>
-                <Button variant="contained" onClick={handleAddLanguages}>
-                    Save <CheckIcon sx={{marginLeft:'4px'}}/>
+                <Button variant="contained" >
+                    Save <CheckIcon sx={{marginLeft:'4px'}} onClick={handleCloseLanguagesModal}/>
                 </Button>
 
               </div>  </Box>
@@ -5566,7 +5591,7 @@ sx={{
           overflowY: 'auto',
         }}
       >
-        {selectedConstraintLanguages.map((language) => (
+        {selectedLanguages.map((language) => (
           <ListItem
             key={language}
             onClick={() => toggleRateLanguageSelection(language)}

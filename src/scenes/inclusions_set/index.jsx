@@ -62,6 +62,7 @@ import Flag from 'react-flagkit';
 
 
 
+
 const top100Films = [  // Substitua com suas opções
   'Non Refundable',
   'Fully Refundable',
@@ -973,18 +974,63 @@ const getLanguageName = (code) => {
   }
 };
 
+const handleTranslate = async (targetText, targetLang) => {
+  // Verifique se o targetLang é "ptm" e substitua por "pt-pt" se necessário
+  if (targetLang === 'pt') {
+    targetLang = 'pt-pt';
+  }
+
+  const requestBody = {
+    text: targetText,
+    targetLang: targetLang
+  };
+
+  try {
+    const response = await axios.post('/api_/translate', requestBody);
+    const translatedText = response.data.translatedText;
+    
+    // Se o código da linguagem for "pt-pt", altere para "pt"
+    const code = targetLang === 'pt-pt' ? 'pt' : targetLang;
+    
+    const newSelectedLanguages = [...selectedLanguages, { code: code, text: translatedText }];
+    setSelectedLanguages(newSelectedLanguages);
+    console.log(">>>", selectedLanguages);
+  } catch (error) {
+    console.error('Erro ao traduzir o texto:', error);
+  }
+};
+
+
+
+
+const c = async (targetText, targetLang) => {
+  //e.preventDefault();
+  const data = {
+    text: targetText,
+    targetLang: targetLang
+  };
+  try {
+    console.log(data);
+    const res = await fetch('/api_/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    console.log(res.data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
+
+
 const translateText = async (targetLang, targetText) => {
   const options = {
     method: 'POST',
-    url: 'https://swift-translate.p.rapidapi.com/translate',
-    headers: {
-      'content-type': 'application/json',
-      'X-RapidAPI-Key': '61ac3cf5c0mshd278aec1da3dbfdp15af41jsn3ecbf3ce9154',
-      'X-RapidAPI-Host': 'swift-translate.p.rapidapi.com'
-    },
-    data: {
+    body: {
       text: targetText, // Texto que você quer traduzir
-      sourceLang: 'en', // Código da língua de origem (sempre em inglês)
+      //sourceLang: 'en', // Código da língua de origem (sempre em inglês)
       targetLang: targetLang // Código da língua de destino
     }
   };
@@ -1004,7 +1050,7 @@ const toggleLanguageSelection = (targetLang, targetText) => {
 
   if (!newInclusionTitle) {
     setOpenDialog(true);
-    return; // Se newInclusionTitle estiver vazio, abre o diálogo e sai da função
+    return; // Se newInclusionTitle estiver vazio, abre o diálogo e sai da função translateTextDeep
   }
 
   // Verifica se a linguagem já está selecionada
@@ -1015,9 +1061,10 @@ const toggleLanguageSelection = (targetLang, targetText) => {
     const updatedSelectedLanguages = selectedLanguages.filter(language => language.code !== targetLang);
     setSelectedLanguages(updatedSelectedLanguages);
   } else { // Se não estiver selecionada, traduz e adiciona à lista translate
-    translateText(targetLang, targetText);
+    handleTranslate(targetText, targetLang);
   }
 };
+
 
 
   const updateInclusion = async () => {
@@ -1344,7 +1391,7 @@ const handleSearch = (searchTerm) => {
                                     overflowY: 'auto',
                                   }}
                                 >
-                                  {['pt', 'en', 'fr', 'es', 'de'].map((language) => (
+                                  {['pt', 'fr', 'es', 'de'].map((language) => (
                                     <ListItem
                                       key={language}
                                       onClick={() => toggleLanguageSelection(language, newInclusionTitle)} // Chamada da função de tradução ou remoção ao clicar
@@ -1512,19 +1559,22 @@ const handleSearch = (searchTerm) => {
                   overflowY: 'auto',
                 }}
               >
-                {['pt', 'en', 'fr', 'es', 'de'].map((language) => (
+                {['pt', 'fr', 'es', 'de'].map((language) => (
+                  <>
                   <ListItem
                     key={language}
                     onClick={() => toggleLanguageSelection(language, newInclusionTitle)} // Chamada da função de tradução ou remoção ao clicar
                     button
-                    selected={selectedLanguages.some(lang => lang.code === language)} // Verifica se a linguagem está selecionada language.code.toUpperCase()
+    L            selected={selectedLanguages.some(lang => lang.code === language)} // Verifica se a linguagem está selecionada language.code.toUpperCase()
                   >
                     <ListItemText>
                       <Flag country={language.toUpperCase()} /> {getLanguageName(language.toUpperCase())}
                     </ListItemText>
                   </ListItem>
+                  </>
                 ))}
               </List>
+             
               <Dialog open={openDialog} onClose={handleCloseDialog}>
                 <DialogTitle>Aviso</DialogTitle>
                 <DialogContent>

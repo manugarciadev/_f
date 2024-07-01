@@ -1,4 +1,4 @@
-import React, { useState, useEffect  } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -24,7 +24,7 @@ import TreeView from "@mui/lab/TreeView";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TreeItem from "@mui/lab/TreeItem";
-import {Checkbox, FormControlLabel, FormLabel, InputAdornment, TextField, Modal } from '@mui/material';
+import {Checkbox, FormControlLabel, FormLabel, InputAdornment, TextField, Modal, Container, Dialog, DialogContent, DialogActions } from '@mui/material';
 import { Link } from 'react-router-dom';
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -57,6 +57,8 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import LoopIcon from '@mui/icons-material/Loop';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import Cropper from 'react-easy-crop';
+import ContentCutIcon from '@mui/icons-material/ContentCut';
 
 
 
@@ -109,36 +111,136 @@ const Dashboard = () => {
   const [selectedInclusion, setSelectedInclusion] = useState(null);
    const [temporaryId, setTemporaryId] = useState(null);
    const [draggedImages, setDraggedImages] = useState([]);
+   const [crop, setCrop] = useState({ x: 0, y: 0 });
+const [zoom, setZoom] = useState(1);
+const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+const [currentImage, setCurrentImage] = useState(null);
+const [currentIndex, setCurrentIndex] = useState(null);
+const [openCropper, setOpenCropper] = useState(false);
+const [error, setError] = useState(null);
 
-   const handleDrop = (event) => {
-    event.preventDefault();
-    const imageUrl = event.dataTransfer.getData('text/plain');
-    addImage(imageUrl);
-  };
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
+    image.setAttribute('crossOrigin', 'anonymous'); // evitar problemas de CORS
+    image.src = url;
+  });
 
-  const handleRemoveImage = (index) => {
-    const updatedImages = [...draggedImages];
-    updatedImages.splice(index, 1);
-    setDraggedImages(updatedImages);
-  };
+const getCroppedImg = async (imageSrc, pixelCrop) => {
+  try {
+    const image = await createImage(imageSrc);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
-  const addImage = (imageUrl) => {
-    setDraggedImages([...draggedImages, imageUrl]);
-  };
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        resolve(URL.createObjectURL(blob));
+      }, 'image/jpeg');
+    });
+  } catch (err) {
+    console.error('Error creating cropped image:', err);
+    throw new Error('Failed to crop the image.');
+  }
+};
+
+const handleDrop = (event) => {
+  event.preventDefault();
+  const files = event.dataTransfer.files;
+  handleFiles(files);
+};
+
+const handleFiles = (files) => {
+  const validFiles = Array.from(files).filter((file) => {
+    const isValidType = file.type.match('image.*');
+    if (!isValidType) {
+      setError('Unsupported file type. Supported file types are: .jpeg, .jpg, .png__');
+    }
+    return isValidType;
+  });
+
+  if (validFiles.length > 0) {
+    setError(null); // Limpa as mensagens de erro anteriores
+  }
+
+  validFiles.forEach((file) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Converte para base64
+      const base64String = reader.result;
+      // Atualiza o estado com a nova imagem cropImage
+      setDraggedImages((prevImages) => [...prevImages, base64String]);
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const convertToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 
-  const handleImageChange = (event) => {
-    const files = event.target.files;
+const handleImageChange = (event) => {
+  const files = event.target.files;
+  handleFiles(files);
+};
+
+const handleRemoveImage = (index) => {
+  const newImages = [...draggedImages];
+  newImages.splice(index, 1);
+  setDraggedImages(newImages);
+};
+
+const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+  setCroppedAreaPixels(croppedAreaPixels);
+}, []);
+
+const showCropper = (image, index) => {
+  setCurrentImage(image);
+  setCurrentIndex(index);
+  setOpenCropper(true);
+};
+
+const cropImage = async () => {
+  try {
+    const croppedImageBlob = await getCroppedImg(currentImage, croppedAreaPixels);
+    const croppedImageBase64 = await convertToBase64(croppedImageBlob);
+
+    const newImages = [...draggedImages];
+    newImages[currentIndex] = croppedImageBase64;
+
+    setDraggedImages(newImages);
+    setOpenCropper(false);
+    setCurrentImage(null);
+    setCurrentIndex(null);
+  } catch (err) {
+    console.error('Error cropping image:', err);
+    setError('Failed to crop the image. Please try again.');
+  }
+};
+
   
-    // Lógica para processar os arquivos e adicionar URLs ao estado
-    // Exemplo: adicionar todas as imagens selecionadas
-    const newImages = Array.from(files)
-      .filter((file) => file.type.startsWith('image/'))
-      .map((file) => URL.createObjectURL(file));
-  
-    // Concatenar as novas imagens com as imagens existentes
-    setDraggedImages((prevImages) => [...prevImages, ...newImages]);
-  };
 
   const handleSelect = (inclusion) => {
     setSelectedInclusion(inclusion);
@@ -550,6 +652,7 @@ const handleAddInclusion = () => {
 
   const apiUrl = '/api_/suppliers';
   // Lógica para adicionar uma nova inclusão
+  console.log(draggedImages);
   const newInclusion = {
     id: generateUniqueId(), // Implemente uma função para gerar IDs únicos
     prefix: newInclusionTitle,
@@ -798,75 +901,115 @@ const handleSearch = (searchTerm) => {
               flexWrap: 'wrap', // Permitir que os itens quebrem para a próxima linha se não houver espaço suficiente
             }}
           >
+            <Container>
+  <Grid container spacing={2}>
+    <Grid item xs={12}>
+      <div>
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+        <Grid container spacing={2}>
+          <Grid item xs={10}>
             <Paper
-          sx={{
-            backgroundColor: 'white',
-            marginRight: '5px',
+              sx={{
+                backgroundColor: 'white',
+                border: '3px dashed gray',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: '10px',
+                padding: '10px',
+                minHeight: '370px',
+                height: 'auto',
+                transition: 'height 0.3s ease',
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDrop} // Liga o evento de arrastar e soltar ao handleDrop
+            >
+              {draggedImages.length === 0 ? (
+                <div className="empty-container-message">
+                  <h3 className="text-center">Drag photos here.</h3>
+                  <h5 className="text-center" style={{ color: 'gray' }}>
+                    Supported file types are: .jpeg, .jpg, .png
+                  </h5>
+                  <input type="file" accept="image/*" onChange={handleImageChange} multiple /> {/* Liga o evento de mudança ao handleImageChange */}
+                </div>
+              ) : (
+                draggedImages.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="square-image"
+                    style={{
+                      position: 'relative',
+                      width: '100px',
+                      height: '100px',
+                      margin: '5px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Dragged Image ${index}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onClick={() => showCropper(imageUrl, index)} // Passa o índice da imagem para a função showCropper
+                    />
+                    <Button
+                      sx={{width: '5px'}}
+                      className="remove-button"
+                      variant="contained"
+                      size="small"
+                      style={{
+                        position: 'absolute',
+                        top: '5px',
+                        right: '5px',
+                        width: '3px',
+                        height: '20px',
+                        padding: '0',
+                        fontSize: '14px',
+                      }}
+                      onClick={() => handleRemoveImage(index)}
+                    >
+                      &times;
+                    </Button>
+                  </div>
+                ))
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
 
-            width: '600px',
-            border: '3px dashed gray',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderRadius: '10px',
-            padding: '10px',
-            // minHeight: '370px',
-            height: '200px',
-            transition: 'height 0.3s ease',
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => handleDrop(event)}
-        >
-          {draggedImages.length === 0 ? (
-            <div className="empty-container-message">
-              <h3 className="text-center">Drag photos here.</h3>
-              <h5 className="text-center" style={{ color: 'gray' }}>
-                Supported file types are: .jpeg, .jpg, .png
-              </h5>
-            
-              <input type="file" accept="image/*" onChange={handleImageChange} multiple />
-            </div>
-          ) : (
-            draggedImages.map((imageUrl, index) => (
-              <div
-                key={index}
-                className="square-image"
-                style={{
-                  position: 'relative',
-                  width: '100px',
-                  height: '200px',
-                  margin: '5px',
-                  borderRadius: '10px',
-                  overflow: 'hidden',
-                }}
-              >
-                <img
-                  src={imageUrl}
-                  alt={`Dragged Image ${index}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-                <Button
-                  className="remove-button"
-                  variant="dark"
-                  size="small"
+        {openCropper && (
+          <Dialog open={openCropper} onClose={() => setOpenCropper(false)} maxWidth="lg">
+            <DialogContent>
+              <div className="cropper-container" style={{ position: 'relative', width: '600px', height: '400px' }}>
+                <Cropper
+                  image={currentImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={4 / 3}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  minZoom={0.5}
+                  maxZoom={3}
+                  zoomSpeed={0.2}
+                  initialAspectRatio={4 / 3}
                   style={{
-                    position: 'absolute',
-                    top: '5px',
-                    right: '5px',
-                    width: '20px',
-                    height: '20px',
-                    padding: '0',
-                    fontSize: '14px',
+                    containerStyle: { height: '100%' },
                   }}
-                  onClick={() => handleRemoveImage(index)}
-                >
-                  &times;
-                </Button>
+                />
               </div>
-            ))
-          )}
-        </Paper>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="contained" onClick={cropImage}>Crop <ContentCutIcon/></Button>
+              <Button variant="contained" onClick={() => setOpenCropper(false)}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
+        )}
+      </div>
+    </Grid>
+  </Grid>
+</Container>
             <TextField fullWidth label="Prefix" id="outlined-size-normal" onChange={handleTitleChange} defaultValue={newInclusionTitle} />
             <TextField fullWidth label="Company Name" id="outlined-size-normal" onChange={handleCompanyNameChange} defaultValue={companyName} />
             <TextField fullWidth label="Company Website" id="outlined-size-normal" onChange={handleCompanySiteChange} defaultValue={companySite} />

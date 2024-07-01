@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -19,6 +19,8 @@ import {
 
 } from "@mui/material";
 import PropTypes from 'prop-types';
+import Cropper from 'react-easy-crop';
+import ContentCutIcon from '@mui/icons-material/ContentCut';
 import { tokens } from "../../theme";
 import { v4 as uuidv4 } from 'uuid';
 import { mockTransactions } from "../../data/mockData";
@@ -437,6 +439,7 @@ const Dashboard = (props) => {
   const [openCategories, setOpenCategories] = useState(false);
   const [openCancellationPolicys, setOpenCancellationPolicys] = useState(false);
   const [draggedImages, setDraggedImages] = useState([]);
+  const [roomImages, setRoomImages] = useState([]);
   const [startHour, setStartHour] = useState('');
   const [startMinute, setStartMinute] = useState(0);
   const [inicialHour, setInicialHour] = useState(0);
@@ -507,7 +510,7 @@ const Dashboard = (props) => {
   const [exclusionsDescription, setExclusionsDescription] = useState('');
   const [languagesSelected, setLanguagesSelected] = useState();
   const [, set] = useState();
-  //const [price, setPrice] = useState();
+  //const [price, setPrice] = useState(); handleDrop
   const [knowBeforeYouGo, setKnowBeforeYouGo] = useState();
   const [knowBeforeYouGoDescription, setKnowBeforeYouGoDescription] = useState('');
   const [whatToBring, setWhatToBring] = useState('');
@@ -583,6 +586,13 @@ const Dashboard = (props) => {
 const [accomodationTypes, setAccomodationTypes] = useState([]);
 const [roomTypes, setRoomTypes] = useState([]);
 const [amenitys, setAmenitys] = useState([]);
+const [crop, setCrop] = useState({ x: 0, y: 0 });
+const [zoom, setZoom] = useState(1);
+const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+const [currentImage, setCurrentImage] = useState(null);
+const [currentIndex, setCurrentIndex] = useState(null);
+const [openCropper, setOpenCropper] = useState(false);
+const [error, setError] = useState(null);
 // getL
   const RoomDetails = ({ room, onPricePerDayChange, onPricePerHourChange }) => {
     const handlePricePerDayChange = (e) => {
@@ -1137,7 +1147,7 @@ const handleAddRoom = () => {
   const newRoomId = uuidv4();
   
   // Crie um novo objeto de quarto com o ID gerado e os dados do quarto
-  const newRoom = { ...roomData, id: newRoomId, code: roomData.codigo, images: draggedRoomImages, title: roomData.titulo, description: roomData.descricao, image: roomImage, pricePerSeason: seasonsTst,  pricePerPerson: null};
+  const newRoom = { ...roomData, id: newRoomId, code: roomData.codigo, images: roomImages, title: roomData.titulo, description: roomData.descricao, image: roomImage, pricePerSeason: seasonsTst,  pricePerPerson: null};
 
   console.log(newRoom.titulo, newRoom.id, newRoom.images);
 
@@ -1531,18 +1541,150 @@ const handleAddRoom = () => {
 
 // addRoom
 
-  const handleImageChange = (event) => {
-    const files = event.target.files;
-  
-    // Lógica para processar os arquivos e adicionar URLs ao estado
-    // Exemplo: adicionar todas as imagens selecionadas
-    const newImages = Array.from(files)
-      .filter((file) => file.type.startsWith('image/'))
-      .map((file) => URL.createObjectURL(file));
-  
-    // Concatenar as novas imagens com as imagens existentes
-    setDraggedImages((prevImages) => [...prevImages, ...newImages]);
-  };
+
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
+    image.setAttribute('crossOrigin', 'anonymous'); // evitar problemas de CORS
+    image.src = url;
+  });
+
+const getCroppedImg = async (imageSrc, pixelCrop) => {
+  try {
+    const image = await createImage(imageSrc);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        resolve(URL.createObjectURL(blob));
+      }, 'image/jpeg');
+    });
+  } catch (err) {
+    console.error('Error creating cropped image:', err);
+    throw new Error('Failed to crop the image.');
+  }
+};
+
+const handleDrop = (event) => {
+  event.preventDefault();
+  const files = event.dataTransfer.files;
+  handleFiles(files);
+};
+
+const handleFiles = (files) => {
+  const validFiles = Array.from(files).filter((file) => {
+    const isValidType = file.type.match('image.*');
+    if (!isValidType) {
+      setError('Unsupported file type. Supported file types are: .jpeg, .jpg, .png__');
+    }
+    return isValidType;
+  });
+
+  if (validFiles.length > 0) {
+    setError(null); // Limpa as mensagens de erro anteriores
+  }
+
+  validFiles.forEach((file) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Converte para base64
+      const base64String = reader.result;
+      // Atualiza o estado com a nova imagem
+      setDraggedImages((prevImages) => [...prevImages, base64String]);
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+
+const handleImageChange = (event) => {
+  const files = event.target.files;
+  handleFiles(files);
+};
+
+// >>> Rooms Images
+
+const handleDropRoomImage = (event) => {
+  event.preventDefault();
+  const files = event.dataTransfer.files;
+  handleRoomFiles(files);
+};
+
+const handleRoomFiles = (files) => {
+  const validFiles = Array.from(files).filter((file) => {
+    const isValidType = file.type.match('image.*');
+    if (!isValidType) {
+      setError('Unsupported file type. Supported file types are: .jpeg, .jpg, .png__');
+    }
+    return isValidType;
+  });
+
+  if (validFiles.length > 0) {
+    setError(null); // Limpa as mensagens de erro anteriores draggedImages
+  }
+
+  validFiles.forEach((file) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Converte para base64
+      const base64String = reader.result;
+      // Atualiza o estado com a nova imagem
+      setRoomImages((prevImages) => [...prevImages, base64String]);
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+
+const handleRoomImageChange = (event) => {
+  const files = event.target.files;
+  handleRoomFiles(files);
+};
+
+// >>>
+
+const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+  setCroppedAreaPixels(croppedAreaPixels);
+}, []);
+
+const showCropper = (image, index) => {
+  setCurrentImage(image);
+  setCurrentIndex(index);
+  setOpenCropper(true);
+};
+
+const cropImage = async () => {
+  try {
+    const croppedImage = await getCroppedImg(currentImage, croppedAreaPixels);
+    const newImages = [...draggedImages];
+    newImages[currentIndex] = croppedImage;
+    setDraggedImages(newImages);
+    setOpenCropper(false);
+    setCurrentImage(null);
+    setCurrentIndex(null);
+  } catch (err) {
+    console.error('Error cropping image:', err);
+    setError('Failed to crop the image. Please try again.');
+  }
+};
 
   const handleStartMinuteChange = (event, newValue) => {
     setStartMinute(newValue);
@@ -2622,7 +2764,7 @@ const initializePricesForCategory = (category) => {
 
   const editRoom = () => {
  
-    const updatedRoomEdit = { ...roomData, id: roomData.id, image: roomImage, pricePerSeason: seasonsTst,  pricePerPerson: null};
+    const updatedRoomEdit = { ...roomData, id: roomData.id, images: roomImages, pricePerSeason: seasonsTst,  pricePerPerson: null};
 
    setRooms(prevRooms => {
     const index = prevRooms.findIndex(room => room.id === updatedRoomEdit.id);
@@ -2643,7 +2785,7 @@ const initializePricesForCategory = (category) => {
   };
 
 
-// Função para editar/substituir uma temporada com base no índice addSeason
+// Função para editar/substituir uma temporada com base no índice addSeason addRoom
 const editSeason = () => {
 
  console.log("#>",auxiliarSeason.id);
@@ -2841,11 +2983,6 @@ const handleSecondChange = (event) => {
     setSecond(event.target.value);
   };
 
-  const handleDrop = (event) => {
-    event.preventDefault();
-    const imageUrl = event.dataTransfer.getData('text/plain');
-    addImage(imageUrl);
-  };
 
   const handleRoomImageDrop = (event) => {
     event.preventDefault();
@@ -2881,7 +3018,7 @@ const handleSecondChange = (event) => {
   };
 
   const addRoomImage = (imageUrl) => {
-    setDraggedRoomImages([...draggedRoomImages, imageUrl]);
+    setRoomImages([...roomImages, imageUrl]);
   };
 
   // temporaryRate
@@ -3043,6 +3180,7 @@ const handleCloseAddSeasonsModal = () => {
       setEndDate(null);
       setSeasonTitle('');
     }
+    handleCloseAddSeasonsModal();
   };
 
   const handleCloseStartTimeModal = () => {
@@ -4035,81 +4173,112 @@ const handleBack = () => {
             <h4 className="text-center" style={{ color: 'gray' }}>Show travellers even more details about your expirience to give your travellers a better idea of what to expect.</h4>
             <br/>
             <Container>
-      <Grid container spacing={2}>
-      <Grid item xs={12}>
-      <Paper
-          sx={{
-            backgroundColor: 'white',
-            marginRight: '5px',
+              
+      <div>
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+          <Grid item xs={10}>
+            <Paper
+              sx={{
+                backgroundColor: 'white',
+                border: '3px dashed gray',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: '10px',
+                padding: '10px',
+                minHeight: '370px',
+                height: 'auto',
+                width: '400px',
+                transition: 'height 0.3s ease',
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDrop} // Liga o evento de arrastar e soltar ao handleDrop
+            >
+              {draggedImages.length === 0 ? (
+                <div className="empty-container-message">
+                  <h3 className="text-center">Drag photos here.</h3>
+                  <h5 className="text-center" style={{ color: 'gray' }}>
+                    Supported file types are: .jpeg, .jpg, .png
+                  </h5>
+                  <input type="file" accept="image/*" onChange={handleImageChange} multiple /> {/* Liga o evento de mudança ao handleImageChange */}
+                </div>
+              ) : (
+                draggedImages.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="square-image"
+                    style={{
+                      position: 'relative',
+                      width: '100px',
+                      height: '100px',
+                      margin: '5px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Dragged Image ${index}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onClick={() => showCropper(imageUrl, index)} // Passa o índice da imagem para a função showCropper
+                    />
+                    <Button
+                      sx={{width: '5px'}}
+                      className="remove-button"
+                      variant="contained"
+                      size="small"
+                      style={{
+                        position: 'absolute',
+                        top: '5px',
+                        right: '5px',
+                        width: '3px',
+                        height: '20px',
+                        padding: '0',
+                        fontSize: '14px',
+                      }}
+                      onClick={() => handleRemoveImage(index)}
+                    >
+                      &times;
+                    </Button>
+                  </div>
+                ))
+              )}
+            </Paper>
+          </Grid>
 
 
-            border: '3px dashed gray',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderRadius: '10px',
-            padding: '10px',
-            minHeight: '370px',
-            height: containerHeight,
-            transition: 'height 0.3s ease',
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => handleDrop(event)}
-        >
-          {draggedImages.length === 0 ? (
-            <div className="empty-container-message">
-              <h3 className="text-center">Drag photos here.</h3>
-              <h5 className="text-center" style={{ color: 'gray' }}>
-                Supported file types are: .jpeg, .jpg, .png
-              </h5>
-            
-              <input type="file" accept="image/*" onChange={handleImageChange} multiple />
-            </div>
-          ) : (
-            draggedImages.map((imageUrl, index) => (
-              <div
-                key={index}
-                className="square-image"
-                style={{
-                  position: 'relative',
-                  width: '100px',
-                  height: '100p',
-                  margin: '5px',
-                  borderRadius: '10px',
-                  overflow: 'hidden',
-                }}
-              >
-                <img
-                  src={imageUrl}
-                  alt={`Dragged Image ${index}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-                <Button
-                  className="remove-button"
-                  variant="dark"
-                  size="small"
+        {openCropper && (
+          <Dialog open={openCropper} onClose={() => setOpenCropper(false)} maxWidth="lg">
+            <DialogContent>
+              <div className="cropper-container" style={{ position: 'relative', width: '600px', height: '400px' }}>
+                <Cropper
+                  image={currentImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={4 / 3}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  minZoom={0.5}
+                  maxZoom={3}
+                  zoomSpeed={0.2}
+                  initialAspectRatio={4 / 3}
                   style={{
-                    position: 'absolute',
-                    top: '5px',
-                    right: '5px',
-                    width: '20px',
-                    height: '20px',
-                    padding: '0',
-                    fontSize: '14px',
+                    containerStyle: { height: '100%' },
                   }}
-                  onClick={() => handleRemoveImage(index)}
-                >
-                  &times;
-                </Button>
+                />
               </div>
-            ))
-          )}
-        </Paper>
-      </Grid>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="contained" onClick={cropImage}>Crop <ContentCutIcon/></Button>
+              <Button variant="contained" onClick={() => setOpenCropper(false)}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
+        )}
+      </div>
 
-      </Grid>
-    </Container>
+</Container>
     <br/>
             <h2 className="text-center">Want to add videos to your expirience?</h2>
             <h4 className="text-center" style={{ color: 'gray' }}>Show travellers even more details in videos about your expirience to give your travellers a better idea of what to expect.</h4>
@@ -5547,73 +5716,115 @@ const handleBack = () => {
             <Container>
             <Grid container spacing={2}>
               <Grid item xs={6}>
-                <Paper
-                  sx={{
-                    backgroundColor: 'white',
-                    marginRight: '5px',
-                    border: '3px dashed gray',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    borderRadius: '10px',
-                    padding: '10px',
-                    minHeight: '370px',
-                    height: containerHeight,
-                    transition: 'height 0.3s ease',
+              <Container>
+  <Grid container spacing={2}>
+    <Grid item xs={12}>
+      <div>
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Paper
+              sx={{
+                backgroundColor: 'white',
+                border: '3px dashed gray',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: '10px',
+                padding: '10px',
+                minHeight: '370px',
+                height: 'auto',
+                transition: 'height 0.3s ease',
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDropRoomImage} // Liga o evento de arrastar e soltar ao handleDrop
+            >
+              {roomImages.length === 0 ? (
+                <div className="empty-container-message">
+                  <h3 className="text-center">Drag photos here.</h3>
+                  <h5 className="text-center" style={{ color: 'gray' }}>
+                    Supported file types are: .jpeg, .jpg, .png
+                  </h5>
+                  <input type="file" accept="image/*" onChange={handleRoomImageChange} multiple /> {/* Liga o evento de mudança ao handleImageChange */}
+                </div>
+              ) : (
+                roomImages.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="square-image"
+                    style={{
+                      position: 'relative',
+                      width: '100px',
+                      height: '100px',
+                      margin: '5px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Dragged Image ${index}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onClick={() => showCropper(imageUrl, index)} // Passa o índice da imagem para a função showCropper
+                    />
+                    <Button
+                      sx={{width: '5px'}}
+                      className="remove-button"
+                      variant="contained"
+                      size="small"
+                      style={{
+                        position: 'absolute',
+                        top: '5px',
+                        right: '5px',
+                        width: '3px',
+                        height: '20px',
+                        padding: '0',
+                        fontSize: '14px',
+                      }}
+                      onClick={() => handleRemoveImage(index)}
+                    >
+                      &times;
+                    </Button>
+                  </div>
+                ))
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {openCropper && (
+          <Dialog open={openCropper} onClose={() => setOpenCropper(false)} maxWidth="lg">
+            <DialogContent>
+              <div className="cropper-container" style={{ position: 'relative', width: '600px', height: '400px' }}>
+                <Cropper
+                  image={currentImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={4 / 3}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  minZoom={0.5}
+                  maxZoom={3}
+                  zoomSpeed={0.2}
+                  initialAspectRatio={4 / 3}
+                  style={{
+                    containerStyle: { height: '100%' },
                   }}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => handleRoomImageDrop(event)}
-                >
-                  {draggedRoomImages.length === 0 ? (
-                    <div className="empty-container-message">
-                      <h3 className="text-center">Drag photos here.</h3>
-                      <h5 className="text-center" style={{ color: 'gray' }}>
-                        Supported file types are: .jpeg, .jpg, .png
-                      </h5>
-                     
-                      <input type="file" accept="image/*" onChange={handleImageRoomChange} />
-                    </div>
-                  ) : (
-                    draggedRoomImages.map((imageUrl, index) => (
-                      <div
-                        key={index}
-                        className="square-image"
-                        style={{
-                          position: 'relative',
-                          width: '100px',
-                          height: '100p',
-                          margin: '5px',
-                          borderRadius: '10px',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <img
-                          src={imageUrl}
-                          alt={`Dragged Image ${index}`}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                        <Button
-                          className="remove-button"
-                          variant="dark"
-                          size="small"
-                          style={{
-                            position: 'absolute',
-                            top: '5px',
-                            right: '5px',
-                            width: '20px',
-                            height: '20px',
-                            padding: '0',
-                            fontSize: '14px',
-                          }}
-                          onClick={() => handleRemoveRoomImage(index)}
-                        >
-                          &times;
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </Paper>
+                />
+              </div>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="contained" onClick={cropImage}>Crop <ContentCutIcon/></Button>
+              <Button variant="contained" onClick={() => setOpenCropper(false)}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
+        )}
+      </div>
+    </Grid>
+  </Grid>
+</Container>
               </Grid>
               <Grid item xs={5}>
               <Box sx={{marginLeft:"10px", width:"400px"}}> 

@@ -1009,18 +1009,80 @@ const handleSeasonsPriceChange = (e, index, priceType) => {
     setCancelationPolicy(event.target.value);
   };
 
+  const handleFiles = (files) => {
+    const validFiles = Array.from(files).filter((file) => {
+      const isValidType = file.type.match('image.*');
+      if (!isValidType) {
+        setError('Unsupported file type. Supported file types are: .jpeg, .jpg, .png__');
+      }
+      return isValidType;
+    });
+  
+    if (validFiles.length > 0) {
+      setError(null); // Limpa as mensagens de erro anteriores
+    }
+  
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Converte para base64
+        const base64String = reader.result;
+        // Atualiza o estado com a nova imagem
+        setDraggedImages((prevImages) => [...prevImages, base64String]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  
+  
   const handleImageChange = (event) => {
     const files = event.target.files;
-  
-    // Lógica para processar os arquivos e adicionar URLs ao estado
-    // Exemplo: adicionar todas as imagens selecionadas
-    const newImages = Array.from(files)
-      .filter((file) => file.type.startsWith('image/'))
-      .map((file) => URL.createObjectURL(file));
-  
-    // Concatenar as novas imagens com as imagens existentes
-    setDraggedImages((prevImages) => [...prevImages, ...newImages]);
+    handleFiles(files);
   };
+  
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+  
+  const showCropper = (image, index) => {
+    setCurrentImage(image);
+    setCurrentIndex(index);
+    setOpenCropper(true);
+  };
+  
+  const cropImage = async () => {
+    try {
+      const croppedImage = await getCroppedImg(currentImage, croppedAreaPixels);
+      const newImages = [...draggedImages];
+      newImages[currentIndex] = croppedImage;
+      setDraggedImages(newImages);
+      setOpenCropper(false);
+      setCurrentImage(null);
+      setCurrentIndex(null);
+    } catch (err) {
+      console.error('Error cropping image:', err);
+      setError('Failed to crop the image. Please try again.');
+    }
+  };
+  
+  const handleDragStart = (event, product) => {
+    event.dataTransfer.setData('product', JSON.stringify(product));
+  };
+  
+  const handleDragOver = (event, index) => {
+    event.preventDefault();
+    const draggedProduct = event.dataTransfer.getData('product');
+    if (!draggedProduct) return; // Verifica se existem dados de produto transferidos products setPolygon
+    const draggedProductObj = JSON.parse(draggedProduct);
+    const draggedIndex = products.findIndex((p) => p === draggedProductObj);
+    if (draggedIndex === index) return; // Não faz nada se o produto for solto na mesma posição
+    let updatedProducts = [...products];
+    updatedProducts.splice(draggedIndex, 1); // Remove o produto arrastado do array
+    updatedProducts.splice(index, 0, { ...draggedProductObj, index: index + 1 }); // Insere o produto na nova posição
+    setProducts(updatedProducts);
+  };
+  
+  
 
   const handleStartMinuteChange = (event, newValue) => {
     setStartMinute(newValue);
@@ -1080,7 +1142,50 @@ const handleSeasonsPriceChange = (e, index, priceType) => {
       knowBeforeYouGoDescription,
       // >>>
       whatToBring,
-      rooms: rooms
+      rooms: rooms,
+      rates: [
+        {
+          id: 1,
+          title: "Rate 1",
+          sel: 1,
+          price: [
+            {
+              title: "Adult",
+              startAge: 18,
+              endAge: 99,
+              fields: [
+                {
+                  from: 1,
+                  to: 3,
+                  price: 55
+                },
+                {
+                  from: 4,
+                  to: 6,
+                  price: 50
+                }
+              ]
+            },
+            {
+              title: "Child",
+              startAge: 0,
+              endAge: 17,
+              fields: [
+                {
+                  from: 1,
+                  to: 3,
+                  price: 35
+                },
+                {
+                  from: 4,
+                  to: 6,
+                  price: 30
+                }
+              ]
+            }
+          ]
+        }
+      ]
       // ... outros campos ...
   };
   
@@ -1900,79 +2005,141 @@ const handleBack = () => {
             <h4 className="text-center" style={{ color: 'gray' }}>Show travellers even more details about your expirience to give your travellers a better idea of what to expect.</h4>
             <br/>
             <Container>
-      <Grid container spacing={2}>
-      <Grid item xs={12}>
-  <Paper
-    sx={{
-      backgroundColor: 'white',
-      marginRight: '5px',
-      border: '3px dashed gray',
-      display: 'flex',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: '10px',
-      padding: '10px',
-      minHeight: '370px',
-      height: containerHeight,
-      transition: 'height 0.3s ease',
-    }}
-    onDragOver={(event) => event.preventDefault()}
-    onDrop={(event) => handleDrop(event)}
-  >
-    {draggedImages.length === 0 ? (
-      <div className="empty-container-message">
-        <h3 className="text-center">Drag photos here.</h3>
-        <h5 className="text-center" style={{ color: 'gray' }}>
-          Supported file types are: .jpeg, .jpg, .png
-        </h5>
-       
-        <input type="file" accept="image/*" onChange={handleImageChange} multiple />
-      </div>
-    ) : (
-      draggedImages.map((imageUrl, index) => (
-        <div
-          key={index}
-          className="square-image"
-          style={{
-            position: 'relative',
-            width: '100px',
-            height: '100p',
-            margin: '5px',
-            borderRadius: '10px',
-            overflow: 'hidden',
-          }}
-        >
-          <img
-            src={imageUrl}
-            alt={`Dragged Image ${index}`}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-          <Button
-            className="remove-button"
-            variant="dark"
-            size="small"
-            style={{
-              position: 'absolute',
-              top: '5px',
-              right: '5px',
-              width: '20px',
-              height: '20px',
-              padding: '0',
-              fontSize: '14px',
-            }}
-            onClick={() => handleRemoveImage(index)}
-          >
-            &times;
-          </Button>
-        </div>
-      ))
-    )}
-  </Paper>
-</Grid>
+  <Grid container spacing={2}>
+    <Grid item xs={12}>
+      <div>
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+        <Grid container spacing={2}>
+          <Grid item xs={6}>
+            <Paper
+              sx={{
+                backgroundColor: 'white',
+                border: '3px dashed gray',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: '10px',
+                padding: '10px',
+                minHeight: '370px',
+                height: 'auto',
+                transition: 'height 0.3s ease',
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDrop} // Liga o evento de arrastar e soltar ao handleDrop
+            >
+              {draggedImages.length === 0 ? (
+                <div className="empty-container-message">
+                  <h3 className="text-center">Drag photos here.</h3>
+                  <h5 className="text-center" style={{ color: 'gray' }}>
+                    Supported file types are: .jpeg, .jpg, .png
+                  </h5>
+                  <input type="file" accept="image/*" onChange={handleImageChange} multiple /> {/* Liga o evento de mudança ao handleImageChange */}
+                </div>
+              ) : (
+                draggedImages.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="square-image"
+                    style={{
+                      position: 'relative',
+                      width: '100px',
+                      height: '100px',
+                      margin: '5px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Dragged Image ${index}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onClick={() => showCropper(imageUrl, index)} // Passa o índice da imagem para a função showCropper
+                    />
+                    <Button
+                      sx={{width: '5px'}}
+                      className="remove-button"
+                      variant="contained"
+                      size="small"
+                      style={{
+                        position: 'absolute',
+                        top: '5px',
+                        right: '5px',
+                        width: '3px',
+                        height: '20px',
+                        padding: '0',
+                        fontSize: '14px',
+                      }}
+                      onClick={() => handleRemoveImage(index)}
+                    >
+                      &times;
+                    </Button>
+                  </div>
+                ))
+              )}
+            </Paper>
+          </Grid>
+          <Grid item xs={6}>
+            <Paper
+              sx={{
+                backgroundColor: 'white',
+                border: '3px solid gray',
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: '10px',
+                padding: '10px',
+                minHeight: '370px',
+                height: 'auto',
+                transition: 'height 0.3s ease',
+              }}
+            >
+              <div className="empty-container-message">
+              <img
+                      src="http://bukingmaster/images."
+                      //alt={`Dragged Image ${index}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      //onClick={() => showCropper(imageUrl, index)} // Passa o índice da imagem para a função showCropper
+                    />
+              </div>
+            </Paper>
+          </Grid>
+        </Grid>
 
-      </Grid>
-    </Container>
+        {openCropper && (
+          <Dialog open={openCropper} onClose={() => setOpenCropper(false)} maxWidth="lg">
+            <DialogContent>
+              <div className="cropper-container" style={{ position: 'relative', width: '600px', height: '400px' }}>
+                <Cropper
+                  image={currentImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={4 / 3}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  minZoom={0.5}
+                  maxZoom={3}
+                  zoomSpeed={0.2}
+                  initialAspectRatio={4 / 3}
+                  style={{
+                    containerStyle: { height: '100%' },
+                  }}
+                />
+              </div>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="contained" onClick={cropImage}>Crop <ContentCutIcon/></Button>
+              <Button variant="contained" onClick={() => setOpenCropper(false)}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
+        )}
+      </div>
+    </Grid>
+  </Grid>
+</Container>
+
     <br/>
             <h2 className="text-center">Want to add videos to your Accomodation?</h2>
             <h4 className="text-center" style={{ color: 'gray' }}>Show travellers even more details in videos about your expirience to give your travellers a better idea of what to expect.</h4>

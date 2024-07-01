@@ -24,7 +24,7 @@ import TreeView from "@mui/lab/TreeView";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TreeItem from "@mui/lab/TreeItem";
-import {Checkbox, FormControlLabel, FormLabel, InputAdornment, TextField, Modal } from '@mui/material';
+import {Checkbox, FormControlLabel, FormLabel, InputAdornment, TextField, ModalDialog, DialogTitle, DialogContent, DialogActions, Dialog, Modal } from '@mui/material';
 import { Link } from 'react-router-dom';
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -57,6 +57,8 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import LoopIcon from '@mui/icons-material/Loop';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import Flag from 'react-flagkit';
+
 
 
 
@@ -108,9 +110,18 @@ const Dashboard = () => {
   const [selectedInclusion, setSelectedInclusion] = useState(null);
   const [temporaryId, setTemporaryId] = useState(null);
   const [selectedOptionId, setSelectedOptionId] = useState(null);
+  const [translatedText, setTranslatedText] = useState('');
+  const [error, setError] = useState('');
+  const [selectedLanguages, setSelectedLanguages] = useState([]);
+  const [hoveredLanguage, setHoveredLanguage] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
 
   const handleSelect = (inclusion) => {
     setSelectedInclusion(inclusion);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
   };
 
   const toggleView = () => {
@@ -196,6 +207,11 @@ const SearchAutocomplete = ({ inclusions, handleSelect }) => {
 
 const handleClearSelection = () => {
   setSelectedInclusion(null);
+};
+
+const removeLanguage = (languageCode) => {
+  const updatedSelectedLanguages = selectedLanguages.filter(language => language.code !== languageCode);
+  setSelectedLanguages(updatedSelectedLanguages);
 };
 
 const GroupsTable = ({ data }) => {
@@ -364,6 +380,7 @@ const InclusionsTable = ({ classes, inclusions, selectedInclusion, handleRemoveI
     setTemporaryId(inclusion._id);
     setNewInclusionTitle(inclusion.title);
     setSelectedTypeOption(inclusion.type);
+    setSelectedLanguages(inclusion.languages);
 
     console.log("Open modal for inclusion:", inclusion);
     setIsCategoryModalOpen(true);
@@ -452,6 +469,602 @@ const [inclusions, setInclusions] = useState([]); // Certifique-se de ter um est
 const handleShowInclusions = () => {
   setShowInclusions(!showInclusions);
 };
+
+
+const getLanguageName = (code) => {
+  switch (code) {
+      case 'AF':
+          return 'Afeganistão';
+      case 'AL':
+          return 'Albânia';
+      case 'DZ':
+          return 'Argélia';
+      case 'AS':
+          return 'Samoa Americana';
+      case 'AD':
+          return 'Andorra';
+      case 'AO':
+          return 'Angola';
+      case 'AI':
+          return 'Anguilla';
+      case 'AQ':
+          return 'Antártida';
+      case 'AG':
+          return 'Antígua e Barbuda';
+      case 'AR':
+          return 'Argentina';
+      case 'AM':
+          return 'Armênia';
+      case 'AW':
+          return 'Aruba';
+      case 'AU':
+          return 'Austrália';
+      case 'AT':
+          return 'Áustria';
+      case 'AZ':
+          return 'Azerbaijão';
+      case 'BS':
+          return 'Bahamas';
+      case 'BH':
+          return 'Bahrein';
+      case 'BD':
+          return 'Bangladesh';
+      case 'BB':
+          return 'Barbados';
+      case 'BY':
+          return 'Belarus';
+      case 'BE':
+          return 'Bélgica';
+      case 'BZ':
+          return 'Belize';
+      case 'BJ':
+          return 'Benin';
+      case 'BM':
+          return 'Bermudas';
+      case 'BT':
+          return 'Butão';
+      case 'BO':
+          return 'Bolívia';
+      case 'BQ':
+          return 'Bonaire, Santo Eustáquio e Saba';
+      case 'BA':
+          return 'Bósnia e Herzegovina';
+      case 'BW':
+          return 'Botsuana';
+      case 'BV':
+          return 'Ilha Bouvet';
+      case 'BR':
+          return 'Brasil';
+      case 'IO':
+          return 'Território Britânico do Oceano Índico';
+      case 'BN':
+          return 'Brunei Darussalam';
+      case 'BG':
+          return 'Bulgária';
+      case 'BF':
+          return 'Burkina Faso';
+      case 'BI':
+          return 'Burundi';
+      case 'CV':
+          return 'Cabo Verde';
+      case 'KH':
+          return 'Camboja';
+      case 'CM':
+          return 'Camarões';
+      case 'CA':
+          return 'Canadá';
+      case 'KY':
+          return 'Ilhas Cayman';
+      case 'CF':
+          return 'República Centro-Africana';
+      case 'TD':
+          return 'Chade';
+      case 'CL':
+          return 'Chile';
+      case 'CN':
+          return 'China';
+      case 'CX':
+          return 'Ilha Christmas';
+      case 'CC':
+          return 'Ilhas Cocos (Keeling)';
+      case 'CO':
+          return 'Colômbia';
+      case 'KM':
+          return 'Comores';
+      case 'CG':
+          return 'Congo';
+      case 'CD':
+          return 'República Democrática do Congo';
+      case 'CK':
+          return 'Ilhas Cook';
+      case 'CR':
+          return 'Costa Rica';
+      case 'HR':
+          return 'Croácia';
+      case 'CU':
+          return 'Cuba';
+      case 'CW':
+          return 'Curaçao';
+      case 'CY':
+          return 'Chipre';
+      case 'CZ':
+          return 'República Tcheca';
+      case 'CI':
+          return 'Costa do Marfim';
+      case 'DK':
+          return 'Dinamarca';
+      case 'DJ':
+          return 'Djibouti';
+      case 'DM':
+          return 'Dominica';
+      case 'DO':
+          return 'República Dominicana';
+      case 'EC':
+          return 'Equador';
+      case 'EG':
+          return 'Egito';
+      case 'SV':
+          return 'El Salvador';
+      case 'GQ':
+          return 'Guiné Equatorial';
+      case 'ER':
+          return 'Eritréia';
+      case 'EE':
+          return 'Estônia';
+      case 'SZ':
+          return 'Essuatíni';
+      case 'ET':
+          return 'Etiópia';
+      case 'FK':
+          return 'Ilhas Falkland (Malvinas)';
+      case 'FO':
+          return 'Ilhas Faroe';
+      case 'FJ':
+          return 'Fiji';
+      case 'FI':
+          return 'Finlândia';
+      case 'FR':
+          return 'França';
+      case 'GF':
+          return 'Guiana Francesa';
+      case 'PF':
+          return 'Polinésia Francesa';
+      case 'TF':
+          return 'Territórios Franceses do Sul';
+      case 'GA':
+          return 'Gabão';
+      case 'GM':
+          return 'Gâmbia';
+      case 'GE':
+          return 'Geórgia';
+      case 'DE':
+          return 'Alemanha';
+      case 'GH':
+          return 'Gana';
+      case 'GI':
+          return 'Gibraltar';
+      case 'GR':
+          return 'Grécia';
+      case 'GL':
+          return 'Groenlândia';
+      case 'GD':
+          return 'Granada';
+      case 'GP':
+          return 'Guadalupe';
+      case 'GU':
+          return 'Guam';
+      case 'GT':
+          return 'Guatemala';
+      case 'GG':
+          return 'Guernsey';
+      case 'GN':
+          return 'Guiné';
+      case 'GW':
+          return 'Guiné-Bissau';
+      case 'GY':
+          return 'Guiana';
+      case 'HT':
+          return 'Haiti';
+      case 'HM':
+          return 'Ilha Heard e Ilhas McDonald';
+      case 'VA':
+          return 'Santa Sé';
+      case 'HN':
+          return 'Honduras';
+      case 'HK':
+          return 'Hong Kong';
+      case 'HU':
+          return 'Hungria';
+      case 'IS':
+          return 'Islândia';
+      case 'IN':
+          return 'Índia';
+      case 'ID':
+          return 'Indonésia';
+      case 'IR':
+          return 'Irã';
+      case 'IQ':
+          return 'Iraque';
+      case 'IE':
+          return 'Irlanda';
+      case 'IM':
+          return 'Ilha de Man';
+      case 'IL':
+          return 'Israel';
+      case 'IT':
+          return 'Itália';
+      case 'JM':
+          return 'Jamaica';
+      case 'JP':
+          return 'Japão';
+      case 'JE':
+          return 'Jersey';
+      case 'JO':
+          return 'Jordânia';
+      case 'KZ':
+          return 'Cazaquistão';
+      case 'KE':
+          return 'Quênia';
+      case 'KI':
+          return 'Kiribati';
+      case 'KP':
+          return 'Coreia do Norte';
+      case 'KR':
+          return 'Coreia do Sul';
+      case 'KW':
+          return 'Kuwait';
+      case 'KG':
+          return 'Quirguistão';
+      case 'LA':
+          return 'Laos';
+      case 'LV':
+          return 'Letônia';
+      case 'LB':
+          return 'Líbano';
+      case 'LS':
+          return 'Lesoto';
+      case 'LR':
+          return 'Libéria';
+      case 'LY':
+          return 'Líbia';
+      case 'LI':
+          return 'Liechtenstein';
+      case 'LT':
+          return 'Lituânia';
+      case 'LU':
+          return 'Luxemburgo';
+      case 'MO':
+          return 'Macau';
+      case 'MG':
+          return 'Madagáscar';
+      case 'MW':
+          return 'Malaui';
+      case 'MY':
+          return 'Malásia';
+      case 'MV':
+          return 'Maldivas';
+      case 'ML':
+          return 'Mali';
+      case 'MT':
+          return 'Malta';
+      case 'MH':
+          return 'Ilhas Marshall';
+      case 'MQ':
+          return 'Martinica';
+      case 'MR':
+          return 'Mauritânia';
+      case 'MU':
+          return 'Maurício';
+      case 'YT':
+          return 'Mayotte';
+      case 'MX':
+          return 'México';
+      case 'FM':
+          return 'Micronésia';
+      case 'MD':
+          return 'Moldávia';
+      case 'MC':
+          return 'Mônaco';
+      case 'MN':
+          return 'Mongólia';
+      case 'ME':
+          return 'Montenegro';
+      case 'MS':
+          return 'Montserrat';
+      case 'MA':
+          return 'Marrocos';
+      case 'MZ':
+          return 'Moçambique';
+      case 'MM':
+          return 'Myanmar';
+      case 'NA':
+          return 'Namíbia';
+      case 'NR':
+          return 'Nauru';
+      case 'NP':
+          return 'Nepal';
+      case 'NL':
+          return 'Países Baixos';
+      case 'NC':
+          return 'Nova Caledônia';
+      case 'NZ':
+          return 'Nova Zelândia';
+      case 'NI':
+          return 'Nicarágua';
+      case 'NE':
+          return 'Níger';
+      case 'NG':
+          return 'Nigéria';
+      case 'NU':
+          return 'Niue';
+      case 'NF':
+          return 'Ilha Norfolk';
+      case 'MK':
+          return 'Macedônia do Norte';
+      case 'MP':
+          return 'Ilhas Marianas do Norte';
+      case 'NO':
+          return 'Noruega';
+      case 'OM':
+          return 'Omã';
+      case 'PK':
+          return 'Paquistão';
+      case 'PW':
+          return 'Palau';
+      case 'PS':
+          return 'Território da Palestina';
+      case 'PA':
+          return 'Panamá';
+      case 'PG':
+          return 'Papua Nova Guiné';
+      case 'PY':
+          return 'Paraguai';
+      case 'PE':
+          return 'Peru';
+      case 'PH':
+          return 'Filipinas';
+      case 'PN':
+          return 'Pitcairn';
+      case 'PL':
+          return 'Polônia';
+      case 'PT':
+          return 'Portugal';
+      case 'PR':
+          return 'Porto Rico';
+      case 'QA':
+          return 'Catar';
+      case 'RE':
+          return 'Reunião';
+      case 'RO':
+          return 'Romênia';
+      case 'RU':
+          return 'Rússia';
+      case 'RW':
+          return 'Ruanda';
+      case 'BL':
+          return 'Saint Barthélemy';
+      case 'SH':
+          return 'Santa Helena, Ascensão e Tristão da Cunha';
+      case 'KN':
+          return 'Saint Kitts e Nevis';
+      case 'LC':
+          return 'Santa Lúcia';
+      case 'MF':
+          return 'Saint Martin (parte francesa)';
+      case 'PM':
+          return 'Saint Pierre e Miquelon';
+      case 'VC':
+          return 'São Vicente e Granadinas';
+      case 'WS':
+          return 'Samoa';
+      case 'SM':
+          return 'San Marino';
+      case 'ST':
+          return 'São Tomé e Príncipe';
+      case 'SA':
+          return 'Arábia Saudita';
+      case 'SN':
+          return 'Senegal';
+      case 'RS':
+          return 'Sérvia';
+      case 'SC':
+          return 'Seychelles';
+      case 'SL':
+          return 'Serra Leoa';
+      case 'SG':
+          return 'Singapura';
+      case 'SX':
+          return 'Sint Maarten (parte holandesa)';
+      case 'SK':
+          return 'Eslováquia';
+      case 'SI':
+          return 'Eslovênia';
+      case 'SB':
+          return 'Ilhas Salomão';
+      case 'SO':
+          return 'Somália';
+      case 'ZA':
+          return 'África do Sul';
+      case 'GS':
+          return 'Ilhas Geórgia do Sul e Sandwich do Sul';
+      case 'SS':
+          return 'Sudão do Sul';
+      case 'ES':
+          return 'Espanha';
+      case 'LK':
+          return 'Sri Lanka';
+      case 'SD':
+          return 'Sudão';
+      case 'SR':
+          return 'Suriname';
+      case 'SJ':
+          return 'Svalbard e Jan Mayen';
+      case 'SE':
+          return 'Suécia';
+      case 'CH':
+          return 'Suíça';
+      case 'SY':
+          return 'Síria';
+      case 'TW':
+          return 'Taiwan';
+      case 'TJ':
+          return 'Tajiquistão';
+      case 'TZ':
+          return 'Tanzânia';
+      case 'TH':
+          return 'Tailândia';
+      case 'TL':
+          return 'Timor-Leste';
+      case 'TG':
+          return 'Togo';
+      case 'TK':
+          return 'Tokelau';
+      case 'TO':
+          return 'Tonga';
+      case 'TT':
+          return 'Trindade e Tobago';
+      case 'TN':
+          return 'Tunísia';
+      case 'TR':
+          return 'Turquia';
+      case 'TM':
+          return 'Turcomenistão';
+      case 'TC':
+          return 'Ilhas Turks e Caicos';
+      case 'TV':
+          return 'Tuvalu';
+      case 'UG':
+          return 'Uganda';
+      case 'UA':
+          return 'Ucrânia';
+      case 'AE':
+          return 'Emirados Árabes Unidos';
+      case 'GB':
+          return 'Reino Unido';
+      case 'US':
+          return 'Estados Unidos';
+      case 'UM':
+          return 'Ilhas Menores Distantes dos Estados Unidos';
+      case 'UY':
+          return 'Uruguai';
+      case 'UZ':
+          return 'Uzbequistão';
+      case 'VU':
+          return 'Vanuatu';
+      case 'VE':
+          return 'Venezuela';
+      case 'VN':
+          return 'Vietnã';
+      case 'VG':
+          return 'Ilhas Virgens Britânicas';
+      case 'VI':
+          return 'Ilhas Virgens Americanas';
+      case 'WF':
+          return 'Wallis e Futuna';
+      case 'EH':
+          return 'Saara Ocidental';
+      case 'YE':
+          return 'Iêmen';
+      case 'ZM':
+          return 'Zâmbia';
+      case 'ZW':
+          return 'Zimbábue';
+      default:
+          return '';
+  }
+};
+
+const handleTranslate = async (targetText, targetLang) => {
+  // Verifique se o targetLang é "ptm" e substitua por "pt-pt" se necessário
+  if (targetLang === 'pt') {
+    targetLang = 'pt-pt';
+  }
+
+  const requestBody = {
+    text: targetText,
+    targetLang: targetLang
+  };
+
+  try {
+    const response = await axios.post('/api_/translate', requestBody);
+    const translatedText = response.data.translatedText;
+    
+    // Se o código da linguagem for "pt-pt", altere para "pt"
+    const code = targetLang === 'pt-pt' ? 'pt' : targetLang;
+    
+    const newSelectedLanguages = [...selectedLanguages, { code: code, text: translatedText }];
+    setSelectedLanguages(newSelectedLanguages);
+    console.log(">>>", selectedLanguages);
+  } catch (error) {
+    console.error('Erro ao traduzir o texto:', error);
+  }
+};
+
+
+
+
+const c = async (targetText, targetLang) => {
+  //e.preventDefault();
+  const data = {
+    text: targetText,
+    targetLang: targetLang
+  };
+  try {
+    console.log(data);
+    const res = await fetch('/api_/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    console.log(res.data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
+
+
+const translateText = async (targetLang, targetText) => {
+  const options = {
+    method: 'POST',
+    body: {
+      text: targetText, // Texto que você quer traduzir
+      //sourceLang: 'en', // Código da língua de origem (sempre em inglês)
+      targetLang: targetLang // Código da língua de destino
+    }
+  };
+
+  try {
+    const response = await axios.request(options);
+    const translatedText = response.data.translatedText;
+    const newSelectedLanguages = [...selectedLanguages, { code: targetLang.toUpperCase(), text: translatedText }];
+    setSelectedLanguages(newSelectedLanguages);
+    console.log(">>>",selectedLanguages);
+  } catch (error) {
+    console.error('Erro ao traduzir o texto:', error);
+  }
+};
+
+const toggleLanguageSelection = (targetLang, targetText) => {
+
+  if (!newInclusionTitle) {
+    setOpenDialog(true);
+    return; // Se newInclusionTitle estiver vazio, abre o diálogo e sai da função translateTextDeep
+  }
+
+  // Verifica se a linguagem já está selecionada
+  const isSelected = selectedLanguages.some(language => language.code === targetLang);
+
+  // Se estiver selecionada, remove da lista
+  if (isSelected) {
+    const updatedSelectedLanguages = selectedLanguages.filter(language => language.code !== targetLang);
+    setSelectedLanguages(updatedSelectedLanguages);
+  } else { // Se não estiver selecionada, traduz e adiciona à lista translate
+    handleTranslate(targetText, targetLang);
+  }
+};
+
 
 
   const updateInclusion = async () => {
@@ -569,7 +1182,8 @@ const handleAddInclusion = () => {
     id: generateUniqueId(), // Implemente uma função para gerar IDs únicos
     title: newInclusionTitle,
     type: selectedTypeOption,
-    additionalId: selectedOptionId
+    additionalId: selectedOptionId,
+    languages: selectedLanguages
   };
   
   fetch(apiUrl, {
@@ -705,7 +1319,7 @@ const handleSearch = (searchTerm) => {
         <div className="card-body d-flex align-items-center justify-content-center">
           <br />
           <Modal open={isCategoryModalOpen} onClose={closeCategoryModal}>
-              <Box sx={{ position: 'absolute', top: '50%', left: '50%', height: 400, width: 600, transform: 'translate(-50%, -50%)', bgcolor: 'white', p: 3 }}>
+              <Box sx={{ position: 'absolute', top: '50%', left: '50%', height: 600, width: 600, transform: 'translate(-50%, -50%)', bgcolor: 'white', p: 3 }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                         <Typography sx={{ marginRight: 2 }} variant="h5">
                            Exclusion ❎ | Edit
@@ -726,32 +1340,80 @@ const handleSearch = (searchTerm) => {
                         <div>
                           <br />
                           <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              '& > :not(style)': { m: 1 },
-                              marginRight: '18px',
-                              width: '100%', // Definir a largura total para ocupar toda a largura disponível
-                              flexWrap: 'wrap', // Permitir que os itens quebrem para a próxima linha se não houver espaço suficiente
-                            }}
-                          >
-                            <TextField fullWidth label="Title" id="outlined-size-normal" onChange={handleTitleChange} defaultValue={newInclusionTitle} />
-                            <FormControl fullWidth> {/* Definir fullWidth para ocupar todo o espaço disponível */}
-                              <InputLabel>Select a Class</InputLabel>
-                              <Select
-                                fullWidth
-                                value={selectedTypeOption}
-                                onChange={handleOptionTypeChange}
-                              >
-                                {classesData && classesData.length > 0 && classesData.map((option, index) => (
-                                  <MenuItem key={index} value={option.title}>
-                                    {option.title}
-                                  </MenuItem>
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                '& > :not(style)': { m: 1 },
+                                marginRight: '18px',
+                                width: '100%', // Definir a largura total para ocupar toda a largura disponível
+                                flexWrap: 'wrap', // Permitir que os itens quebrem para a próxima linha se não houver espaço suficiente
+                              }}
+                            >
+                              <List sx={{ display: 'flex', flexDirection: 'row', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+                                {selectedLanguages.map((language) => (
+                                  <ListItem
+                                    sx={{marginTop: 10 ,height: 20}}
+                                    key={language.code}
+                                    onMouseEnter={() => setHoveredLanguage(language)}
+                                    onMouseLeave={() => setHoveredLanguage(null)}
+                                    //button
+                                    //onClick={() => openLangModal(language)}
+                                    secondaryAction={<button onClick={() => removeLanguage(language.code)}>X</button>}
+                                  >
+                                    <Flag country={language.code.toUpperCase()} />
+                                    {hoveredLanguage === language && (
+                                      <span title={""}>{language.text}</span>
+                                    )}
+                                  </ListItem>
                                 ))}
-                              </Select>
-                            </FormControl>
-                          </Box>
+                                </List>
+                              <Divider/>
+                              <TextField fullWidth label="Title" id="outlined-size-normal" onChange={handleTitleChange} defaultValue={newInclusionTitle} />
+                              <FormControl fullWidth> {/* Definir fullWidth para ocupar todo o espaço disponível */}
+                                <InputLabel>Select a Class</InputLabel>
+                                <Select
+                                  fullWidth
+                                  value={selectedTypeOption}
+                                  onChange={handleOptionTypeChange}
+                                >
+                                  {classesData && classesData.length > 0 && classesData.map((option, index) => (
+                                    <MenuItem key={index} value={option.title}>
+                                      {option.title}
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                              <List
+                                  id="language-list"
+                                  style={{
+                                    maxHeight: '200px',
+                                    overflowY: 'auto',
+                                  }}
+                                >
+                                  {['pt', 'fr', 'es', 'de'].map((language) => (
+                                    <ListItem
+                                      key={language}
+                                      onClick={() => toggleLanguageSelection(language, newInclusionTitle)} // Chamada da função de tradução ou remoção ao clicar
+                                      button
+                                      selected={selectedLanguages.some(lang => lang.code === language)} // Verifica se a linguagem está selecionada
+                                    >
+                                      <ListItemText>
+                                        <Flag country={language.toUpperCase()} /> {getLanguageName(language.toUpperCase())}
+                                      </ListItemText>
+                                    </ListItem>
+                                  ))}
+                                </List>
+                                <Dialog open={openDialog} onClose={handleCloseDialog}>
+                                  <DialogTitle>Aviso</DialogTitle>
+                                  <DialogContent>
+                                    Por favor, escreva o "Exclusion" antes de selecionar um idioma.
+                                  </DialogContent>
+                                  <DialogActions>
+                                    <Button onClick={handleCloseDialog}>OK</Button>
+                                  </DialogActions>
+                                </Dialog>
+                            </Box>
                          <br />
                       <br />
                  </div>    
@@ -809,7 +1471,7 @@ const handleSearch = (searchTerm) => {
                 onClick={() => toggleView(true)}
                 style={{ marginRight: '8px' }}
               >
-                Exclusions
+                Inclusions
               </Button>
               <Button
                 variant={!showInclusions ? 'contained' : 'outlined'}
@@ -839,7 +1501,7 @@ const handleSearch = (searchTerm) => {
           <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ flex: 1, borderBottom: '1px solid black', marginRight: '10px' }}></div>
-            <h2 className="text-center">Create a New Exclusion</h2>
+            <h2 className="text-center">Create a New Inclusion</h2>
             <div style={{ flex: 1, borderBottom: '1px solid black', marginLeft: '10px' }}></div>
           </div>
           <h4 className="text-center" style={{ color: 'gray' }}>Add a new exclusion to be added to the products.</h4>
@@ -855,7 +1517,26 @@ const handleSearch = (searchTerm) => {
               flexWrap: 'wrap', // Permitir que os itens quebrem para a próxima linha se não houver espaço suficiente
             }}
           >
-            <TextField fullWidth label="Title" id="outlined-size-normal" onChange={handleTitleChange} defaultValue="" />
+            <List sx={{ display: 'flex', flexDirection: 'row', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+              {selectedLanguages.map((language) => (
+                <ListItem
+                  sx={{marginTop: 10 ,height: 20}}
+                  key={language.code}
+                  onMouseEnter={() => setHoveredLanguage(language)}
+                  onMouseLeave={() => setHoveredLanguage(null)}
+                  //button
+                  //onClick={() => openLangModal(language)}
+                  secondaryAction={<button onClick={() => removeLanguage(language.code)}>X</button>}
+                >
+                  <Flag country={language.code.toUpperCase()} />
+                  {hoveredLanguage === language && (
+                    <span title={""}>{language.text}</span>
+                  )}
+                </ListItem>
+              ))}
+              </List>
+             <Divider/>
+            <TextField fullWidth label="Title" id="outlined-size-normal" onChange={handleTitleChange} defaultValue={newInclusionTitle} />
             <FormControl fullWidth> {/* Definir fullWidth para ocupar todo o espaço disponível */}
               <InputLabel>Select a Class</InputLabel>
               <Select
@@ -870,11 +1551,44 @@ const handleSearch = (searchTerm) => {
                 ))}
               </Select>
             </FormControl>
+            <List
+            fu
+                id="language-list"
+                style={{
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                }}
+              >
+                {['pt', 'fr', 'es', 'de'].map((language) => (
+                  <>
+                  <ListItem
+                    key={language}
+                    onClick={() => toggleLanguageSelection(language, newInclusionTitle)} // Chamada da função de tradução ou remoção ao clicar
+                    button
+    L            selected={selectedLanguages.some(lang => lang.code === language)} // Verifica se a linguagem está selecionada language.code.toUpperCase()
+                  >
+                    <ListItemText>
+                      <Flag country={language.toUpperCase()} /> {getLanguageName(language.toUpperCase())}
+                    </ListItemText>
+                  </ListItem>
+                  </>
+                ))}
+              </List>
+             
+              <Dialog open={openDialog} onClose={handleCloseDialog}>
+                <DialogTitle>Aviso</DialogTitle>
+                <DialogContent>
+                  Por favor, escreva o "Exclusion" antes de selecionar um idioma.
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={handleCloseDialog}>OK</Button>
+                </DialogActions>
+              </Dialog>
           </Box>
           <div>
             <div style={{ maxHeight: '300px', overflowY: 'auto', marginTop: '20px' }}>
               <Button sx={{}} fullWidth variant="contained" color="primary" onClick={handleAddInclusion}>
-                Add Exclusion <CheckIcon />
+                  Add Inclusion <CheckIcon />
               </Button>
               <br />
             </div>
